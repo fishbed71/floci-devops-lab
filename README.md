@@ -99,6 +99,7 @@ powershell -ExecutionPolicy Bypass -File scripts/sync-agent-prompts.ps1
 ## 검증 기록 (2026-11-09)
 
 Windows 11 Pro, Docker Desktop 29.7.2(4 CPU, 8 GB), Floci 2.4.0, Terraform 1.17.1, AWS provider 6.72.0 에서 확인했습니다.
+워크플로는 같은 PC 의 self-hosted runner 2.338.2 (Windows PowerShell 5.1, Terraform 1.17.0, AWS CLI 2.39.5) 에서 실행했습니다.
 
 | 항목 | 결과 |
 | --- | --- |
@@ -111,6 +112,9 @@ Windows 11 Pro, Docker Desktop 29.7.2(4 CPU, 8 GB), Floci 2.4.0, Terraform 1.17.
 | SSM Run Command (`provision/ssm-run.ps1`) | 3대 모두 Success, user_data 재실행 멱등 |
 | `app/compose.dev.yaml` | 이미지 235 MB, uid 10001, `/health` ok |
 | `terraform destroy` | 29개 삭제, 남은 컨테이너 없음 |
-| 워크플로 4개 | actionlint 통과 (GitHub 에서 실제 실행은 runner 등록 후 확인 필요) |
+| `infra-ci` (PR) | fmt·validate·plan 성공, PR 에 plan 코멘트 게시 (약 1분 20초) |
+| `app-ci` (PR) | 이미지 빌드 + PostgreSQL 스모크 3/3, 테스트 컨테이너 정리 확인 |
+| `infra-cd` (수동) | `confirm=yes` 는 job 건너뜀, `confirm=apply` 는 apply(변경 없음) + 스모크 12/12 |
+| `scale` (수동) | desired 2 → InService 2/2, 스모크 12/12 |
 
 Floci 특이사항과 해결책은 [docs/troubleshooting.md](docs/troubleshooting.md) 에 정리했습니다.
