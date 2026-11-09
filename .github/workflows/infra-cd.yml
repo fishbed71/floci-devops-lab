@@ -1,0 +1,67 @@
+# main 의 코드를 Floci 에 apply 하고 스모크 테스트한다.
+#
+# 승인 방식: 사람이 직접 실행하고 confirm 칸에 "apply" 를 입력해야 돈다.
+#   (GitHub Environment 의 Required reviewers 는 private 저장소에서 Free·Pro·Team 플랜이 지원하지 않으므로
+#    수동 실행 + 확인 문구로 승인 단계를 대신한다. 공개 저장소라면 environment 승인으로 바꿔도 된다.)
+# 실행: Actions → infra-cd → Run workflow,  또는  gh workflow run infra-cd.yml -f confirm=apply
+#
+# 앱 코드(app/app.py)가 바뀌었으면 launch template 새 버전 → ASG instance refresh 로 배포된다.
+name: infra-cd
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: '적용하려면 "apply" 를 입력'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
+env:
+  AWS_ENDPOINT_URL: http://localhost:4566
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  TF_IN_AUTOMATION: "1"
+  TF_INPUT: "0"
+
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'apply'
+    runs-on: [self-hosted, Windows, floci]
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: state 버킷 확인
+        run: .\scripts\bootstrap-state.ps1
+
+      - name: terraform init
+        working-directory: infra/envs/dev
+        run: |
+          terraform init -no-color
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: terraform plan
+        working-directory: infra/envs/dev
+        run: |
+          terraform plan -no-color -out=tfplan
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: terraform apply
+        working-directory: infra/envs/dev
+        run: |
+          terraform apply -no-color tfplan
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          terraform output
+
+      - name: 스모크 테스트 (ALB → 웹 → DB)
+        run: .\scripts\smoke-test.ps1 -TimeoutSec 300 -MinHosts 1

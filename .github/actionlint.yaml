@@ -1,0 +1,4 @@
+# actionlint 설정: self-hosted runner 의 사용자 지정 라벨
+self-hosted-runner:
+  labels:
+    - floci

@@ -1,0 +1,24 @@
+# Floci 영속 데이터
+data/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+plan.txt
+crash.log
+
+# 비밀값
+*.pem
+.env
+*.auto.tfvars.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# SSH 키 (scripts/new-ssh-key.ps1 로 생성)
+provision/keys/

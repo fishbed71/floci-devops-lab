@@ -1,0 +1,52 @@
+# 앱 PR 마다 Docker 이미지를 빌드하고 PostgreSQL 과 함께 띄워 /health 를 확인한다.
+# Windows runner 는 서비스 컨테이너를 못 쓰므로 docker 명령으로 직접 띄운다.
+name: app-ci
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: [self-hosted, Windows, floci]
+    defaults:
+      run:
+        shell: powershell
+    env:
+      NET: appci-${{ github.run_id }}
+      IMAGE: guestbook:ci-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 이미지 빌드
+        run: |
+          docker build -t $env:IMAGE app
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: DB + 앱 기동
+        run: |
+          docker network create $env:NET | Out-Null
+          docker run -d --name "$env:NET-db" --network $env:NET `
+            -e POSTGRES_DB=guestbook -e POSTGRES_USER=app -e POSTGRES_PASSWORD=ci `
+            postgres:16-alpine | Out-Null
+          docker run -d --name "$env:NET-app" --network $env:NET -p 18000:8000 `
+            -e DB_HOST="$env:NET-db" -e DB_USER=app -e DB_PASSWORD=ci -e DB_NAME=guestbook `
+            -e APP_VERSION=ci $env:IMAGE | Out-Null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 스모크 테스트
+        run: .\scripts\smoke-test.ps1 -Url http://localhost:18000 -TimeoutSec 90 -Samples 3
+
+      - name: 정리
+        if: always()
+        run: |
+          $ErrorActionPreference = 'Continue'   # 정리 단계는 일부 실패해도 계속
+          docker logs "$env:NET-app" 2>&1 | Select-Object -Last 20
+          docker rm -f "$env:NET-app" "$env:NET-db" 2>&1 | Out-Null
+          docker network rm $env:NET 2>&1 | Out-Null
+          exit 0

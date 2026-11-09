@@ -1,0 +1,50 @@
+#!/bin/bash
+# 웹서버 프로비저닝 스크립트 (Terraform templatefile 로 렌더링됨)
+# - 두 번 실행해도 결과가 같도록(멱등) 작성한다.
+# - Floci EC2 는 systemd 가 없는 컨테이너라 백그라운드 프로세스로 띄우고,
+#   실제 AWS(systemd 있음)에서는 systemd 서비스로 등록한다.
+set -euo pipefail
+exec >> /var/log/user-data.log 2>&1
+echo "[user-data] start $(date -Is) version=${app_version}"
+
+# 1) 패키지 (이미 설치돼 있으면 dnf 가 건너뜀)
+dnf install -y -q python3 python3-psycopg2 python3-boto3
+
+# 2) 앱 배치
+install -d -m 0755 /opt/guestbook
+echo '${app_py_b64}' | base64 -d > /opt/guestbook/app.py
+cat > /opt/guestbook/app.env <<ENV
+APP_VERSION=${app_version}
+DB_SECRET_ARN=${db_secret_arn}
+AWS_REGION=${region}
+PORT=${app_port}
+ENV
+
+# 3) 기동
+if [ -d /run/systemd/system ]; then
+  cat > /etc/systemd/system/guestbook.service <<UNIT
+[Unit]
+Description=Guestbook
+After=network-online.target
+
+[Service]
+EnvironmentFile=/opt/guestbook/app.env
+ExecStart=/usr/bin/python3 /opt/guestbook/app.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable guestbook
+  systemctl restart guestbook
+else
+  if [ -f /run/guestbook.pid ] && kill -0 "$(cat /run/guestbook.pid)" 2>/dev/null; then
+    kill "$(cat /run/guestbook.pid)" && sleep 1
+  fi
+  set -a; . /opt/guestbook/app.env; set +a
+  nohup /usr/bin/python3 /opt/guestbook/app.py >> /var/log/guestbook.log 2>&1 &
+  echo $! > /run/guestbook.pid
+fi
+
+echo "[user-data] done $(date -Is)"

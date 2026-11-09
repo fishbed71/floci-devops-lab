@@ -1,0 +1,82 @@
+# PR 마다 fmt → validate → plan 을 돌리고 plan 결과를 PR 코멘트로 남긴다.
+name: infra-ci
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "app/app.py"
+      - ".github/workflows/infra-*.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
+env:
+  AWS_ENDPOINT_URL: http://localhost:4566
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  TF_IN_AUTOMATION: "1"
+  TF_INPUT: "0"
+
+jobs:
+  plan:
+    runs-on: [self-hosted, Windows, floci]
+    defaults:
+      run:
+        shell: powershell
+        working-directory: infra/envs/dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: terraform fmt
+        run: |
+          terraform fmt -check -recursive ../..
+          if ($LASTEXITCODE -ne 0) { Write-Error "포맷이 맞지 않습니다. terraform fmt -recursive infra 를 실행하세요."; exit 1 }
+
+      - name: terraform init
+        run: |
+          terraform init -no-color
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: terraform validate
+        run: |
+          terraform validate -no-color
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: terraform plan
+        run: |
+          terraform plan -no-color -out=tfplan
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          terraform show -no-color tfplan | Out-File -FilePath plan.txt -Encoding utf8
+
+      - name: PR 에 plan 코멘트
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let plan = fs.readFileSync('infra/envs/dev/plan.txt', 'utf8').replace(/^﻿/, '');
+            const max = 60000;
+            if (plan.length > max) plan = plan.slice(0, max) + '\n... (잘림)';
+            const summary = (plan.match(/^Plan: .*$/m) || plan.match(/^No changes\..*$/m) || ['(요약 없음)'])[0];
+            const body = [
+              '### Terraform plan (dev, Floci)',
+              `**${summary}**`,
+              '<details><summary>전체 plan 보기</summary>',
+              '',
+              '```',
+              plan,
+              '```',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

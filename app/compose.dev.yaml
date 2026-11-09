@@ -1,0 +1,30 @@
+# M2 로컬 개발용: Floci 없이 앱 + PostgreSQL 만 띄운다.
+#   docker compose -f app/compose.dev.yaml up --build
+#   http://localhost:8000
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      APP_VERSION: local
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: guestbook
+      DB_USER: app
+      DB_PASSWORD: devpassword
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: guestbook
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: devpassword
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d guestbook"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

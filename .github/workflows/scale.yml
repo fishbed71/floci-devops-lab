@@ -1,0 +1,34 @@
+# 웹서버 대수를 수동으로 조정한다 (수평 스케일).
+# 실행: Actions 탭 → scale → Run workflow, 또는  gh workflow run scale.yml -f desired_capacity=3
+name: scale
+
+on:
+  workflow_dispatch:
+    inputs:
+      desired_capacity:
+        description: "웹서버 대수"
+        type: choice
+        options: ["1", "2", "3", "4"]
+        default: "2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
+jobs:
+  scale:
+    runs-on: [self-hosted, Windows, floci]
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: desired capacity 변경
+        run: .\scripts\scale.ps1 -Desired ${{ inputs.desired_capacity }}
+
+      - name: 스모크 테스트
+        run: .\scripts\smoke-test.ps1 -TimeoutSec 240 -MinHosts 1

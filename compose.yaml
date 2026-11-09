@@ -1,0 +1,19 @@
+# Floci: 로컬 AWS 에뮬레이터. 실행: docker compose up -d
+services:
+  floci:
+    image: floci/floci:2.4.0          # 강의 중 동작이 바뀌지 않도록 버전 고정
+    container_name: floci
+    ports:
+      - "4566:4566"                   # AWS API 전체 (Terraform·CLI·SDK 가 여기로)
+      - "8080:8080"                   # ALB HTTP 리스너 (Floci 컨테이너 안에서 열림)
+      - "7001-7020:7001-7020"         # RDS 프록시: 호스트에서 psql -h localhost -p 7001
+    environment:
+      # SG 의 CIDR 인그레스 규칙 포트를 localhost:30000~ 으로 노출 (웹 인스턴스 직접 접속용)
+      FLOCI_NETWORK_SECURITY_GROUP_ENFORCEMENT_ENABLED: "false"
+      # RDS 프록시 포트 범위를 위 ports 노출 범위와 맞춤
+      FLOCI_SERVICES_RDS_PROXY_MAX_PORT: "7020"
+    volumes:
+      # EC2·RDS 를 실제 컨테이너로 띄우기 위해 호스트 Docker 사용 (= 호스트 Docker 전체 권한)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # 재시작해도 리소스와 Terraform state 버킷 유지 (git 에서 제외)
+      - ./data:/app/data
