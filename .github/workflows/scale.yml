@@ -25,7 +25,7 @@ jobs:
       run:
         shell: powershell
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: desired capacity 변경
         run: .\scripts\scale.ps1 -Desired ${{ inputs.desired_capacity }}

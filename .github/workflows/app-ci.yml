@@ -21,7 +21,7 @@ jobs:
       NET: appci-${{ github.run_id }}
       IMAGE: guestbook:ci-${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: 이미지 빌드
         run: |
