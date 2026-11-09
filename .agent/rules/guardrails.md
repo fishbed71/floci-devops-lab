@@ -16,7 +16,7 @@ AI 코딩 에이전트는 아래 규칙을 항상 지킨다.
    사람이 실행할 명령을 안내만 한다. `fmt`, `validate`, `plan` 은 실행해도 된다.
 3. **비밀값을 코드에 쓰지 않는다.** DB 비밀번호는 `random_password` → Secrets Manager. `.tfvars`, 워크플로, Dockerfile 에 평문 비밀번호 금지.
 4. **변경 전에 계획을 보여준다.** 만들거나 바꿀 파일 목록과 이유를 먼저 제시하고, 끝나면 diff 요약과 검증 명령을 제시한다.
-5. **버전을 고정한다.** Docker 이미지 태그(`latest` 금지), Terraform provider(`~> 6.0`), GitHub Action(`@v4` 등).
+5. **버전을 고정한다.** Docker 이미지 태그(`latest` 금지), Terraform provider(`~> 6.0`), GitHub Action(`actions/checkout@v7` 처럼 메이저 버전).
 
 ## 저장소 구조
 

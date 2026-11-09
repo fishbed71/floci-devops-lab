@@ -21,7 +21,7 @@ M9. self-hosted runner(M8)가 온라인이 된 뒤.
 - defaults.run.shell: powershell (Windows PowerShell 5.1 은 항상 있음)
 - env: AWS_ENDPOINT_URL=http://localhost:4566, AWS_DEFAULT_REGION=us-east-1,
        AWS_ACCESS_KEY_ID=test, AWS_SECRET_ACCESS_KEY=test, TF_IN_AUTOMATION=1
-- 액션 버전 고정: actions/checkout@v4, actions/github-script@v7
+- 액션 버전 고정: actions/checkout@v7, actions/github-script@v9 (Node 24 런타임. Node 20 버전은 지원 종료)
 - Windows runner 는 컨테이너 job·서비스 컨테이너를 못 쓰므로 모든 단계를 run 스텝으로
 - terraform 을 쓰는 job 은 concurrency group "terraform-dev" (cancel-in-progress: false)
 - 각 run 스텝 끝에 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } 로 실패를 전파

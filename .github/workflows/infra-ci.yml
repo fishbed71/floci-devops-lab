@@ -32,7 +32,7 @@ jobs:
         shell: powershell
         working-directory: infra/envs/dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: terraform fmt
         run: |
@@ -56,7 +56,7 @@ jobs:
           terraform show -no-color tfplan | Out-File -FilePath plan.txt -Encoding utf8
 
       - name: PR 에 plan 코멘트
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
